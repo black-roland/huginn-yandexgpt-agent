@@ -9,26 +9,8 @@ module Agents
     default_schedule "every_1m"
     no_bulk_receive!
 
-    description <<~MD
-      YandexGPT Agent отправляет асинхронные запросы к YandexGPT и проверяет статус операций.
-
-      При получении новых events:
-      1. Отправляет асинхронный запрос к YandexGPT
-      2. Сохраняет operation ID и event ID в memory
-
-      При выполнении по расписанию:
-      1. Проверяет статус сохраненных операций
-      2. Создает events с результатами завершенных операций
-
-      Настройки:
-      - `folder_id`: Идентификатор каталога Yandex Cloud
-      - `api_key`: API-ключ для аутентификации
-      - `model_name`: Название модели (например, "yandexgpt-lite")
-      - `model_version`: Версия модели ("latest", "rc" или "deprecated")
-      - `system_prompt`: Системный промпт (по умолчанию "Выдели основные мысли из статьи.")
-      - `user_prompt`: Пользовательский промпт (может использовать Liquid)
-      - `temperature`: Параметр температуры (по умолчанию 0.1)
-      - `max_tokens`: Максимальное количество токенов (по умолчанию 2000)
+    description <<-MD
+      Агент для интеграции YandexGPT с Huginn. Позволяет использовать мощь языковых моделей YandexGPT для обработки текста в ваших автоматизированных сценариях.
     MD
 
     def default_options
