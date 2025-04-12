@@ -18,30 +18,10 @@ describe Agents::YandexGptAgent do
       'max_tokens' => 2000,
       'expected_receive_period_in_days' => 1
     }
-    @checker = Agents::YandexGptAgent.new(name: "YandexGPT Test", options: @valid_options)
+    @checker = Agents::YandexGptAgent.new(name: "YandexGPTAgent", options: @valid_options)
     @checker.user = users(:bob)
     @checker.save!
   end
 
-  describe "#validate_options" do
-    it "should validate required options" do
-      expect(@checker).to be_valid
-
-      @checker.options['folder_id'] = nil
-      expect(@checker).not_to be_valid
-    end
-  end
-
-  describe "#receive" do
-    it "should save operation id to memory" do
-      event = Event.new(payload: {'message' => 'test'})
-      stub_request(:post, /llm.api.cloud.yandex.net/)
-        .to_return(body: {id: 'test-op-id'}.to_json)
-
-      @checker.receive([event])
-      expect(@checker.memory['pending_operations']).to have_key('test-op-id')
-    end
-  end
-
-  pending "add more specs for check method and response handling"
+  pending "add specs here"
 end

@@ -10,6 +10,12 @@
 ADDITIONAL_GEMS="huginn_yandex_gpt_agent(github: black-roland/huginn-yandexgpt-agent)"
 ```
 
+Затем в директории Huginn выполните:
+
+```bash
+bundle
+```
+
 ## Использование
 
 Настройте агент с помощью:
