@@ -6,7 +6,7 @@ module Agents
   class YandexGptAgent < Agent
     include WebRequestConcern
 
-    default_schedule "5m"
+    default_schedule "every_1m"
     no_bulk_receive!
 
     description <<~MD
