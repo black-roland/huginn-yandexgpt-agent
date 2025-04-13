@@ -28,6 +28,11 @@ module Agents
       `temperature`: Креативность ответов (0-1, по умолчанию 0.1)
 
       `max_tokens`: Максимальное количество токенов (по умолчанию 2000)
+
+      `json_output`: Возвращать ответ в формате JSON (true/false)
+
+      `json_schema`: Схема JSON для структурированного ответа (опционально)
+
     MD
 
     event_description <<~MD
@@ -36,6 +41,7 @@ module Agents
       {
         "completion": {
           "text": "Ответ модели",
+          "json": { ... },  # если включен json_output
           "usage": {
             "input_text_tokens": 10,
             "completion_tokens": 20,
@@ -55,6 +61,8 @@ module Agents
     form_configurable :user_prompt, type: :text
     form_configurable :temperature, type: :number
     form_configurable :max_tokens, type: :number
+    form_configurable :json_output, type: :boolean
+    form_configurable :json_schema, type: :text
     form_configurable :expected_receive_period_in_days, type: :string
 
     def default_options
@@ -67,7 +75,8 @@ module Agents
         'user_prompt' => '{{message}}',
         'temperature' => 0.1,
         'max_tokens' => 2000,
-        'expected_receive_period_in_days' => '1'
+        'json_output' => 'false',
+        'expected_receive_period_in_days' => '2'
       }
     end
 
@@ -83,6 +92,14 @@ module Agents
 
       if options['max_tokens'].present?
         errors.add(:base, "max_tokens должен быть положительным числом") unless options['max_tokens'].to_i > 0
+      end
+
+      if options['json_schema'].present?
+        begin
+          JSON.parse(options['json_schema'])
+        rescue JSON::ParserError => e
+          errors.add(:base, "json_schema должен быть валидным JSON: #{e.message}")
+        end
       end
     end
 
@@ -139,20 +156,35 @@ module Agents
     end
 
     def send_completion_request(system_prompt:, user_prompt:, temperature:, max_tokens:)
+      request_body = {
+        modelUri: model_uri,
+        completionOptions: {
+          stream: false,
+          temperature: temperature,
+          maxTokens: max_tokens.to_s
+        },
+        messages: [
+          { role: 'system', text: system_prompt },
+          { role: 'user', text: user_prompt }
+        ]
+      }
+
+      # Добавляем параметры для структурированного вывода
+      if boolify(interpolated['json_output'])
+        if interpolated['json_schema'].present?
+          begin
+            request_body[:json_schema] = { schema: JSON.parse(interpolated['json_schema']) }
+          rescue JSON::ParserError => e
+            error "Ошибка парсинга json_schema: #{e.message}"
+          end
+        else
+          request_body[:json_object] = true
+        end
+      end
+
       response = faraday.post(
         "https://llm.api.cloud.yandex.net/foundationModels/v1/completionAsync",
-        {
-          modelUri: model_uri,
-          completionOptions: {
-            stream: false,
-            temperature: temperature,
-            maxTokens: max_tokens.to_s
-          },
-          messages: [
-            { role: 'system', text: system_prompt },
-            { role: 'user', text: user_prompt }
-          ]
-        }.to_json,
+        request_body.to_json,
         {
           'Content-Type' => 'application/json',
           'Authorization' => "Api-Key #{interpolated['api_key']}",
@@ -205,17 +237,27 @@ module Agents
       text = gpt_response.dig('alternatives', 0, 'message', 'text')
       usage = gpt_response['usage']
 
-      create_event payload: original_payload.merge(
-        'completion' => {
-          'text' => text,
-          'usage' => {
-            'input_text_tokens' => usage['inputTextTokens'],
-            'completion_tokens' => usage['completionTokens'],
-            'total_tokens' => usage['totalTokens']
-          },
-          'model_version' => gpt_response['modelVersion']
-        }
-      )
+      completion_data = {
+        'text' => text,
+        'usage' => {
+          'input_text_tokens' => usage['inputTextTokens'],
+          'completion_tokens' => usage['completionTokens'],
+          'total_tokens' => usage['totalTokens']
+        },
+        'model_version' => gpt_response['modelVersion']
+      }
+
+      # Добавляем JSON ответ если он есть
+      if boolify(interpolated['json_output']) && text
+        begin
+          json_response = JSON.parse(text.gsub('\\n', ''))
+          completion_data['json'] = json_response
+        rescue JSON::ParserError
+          log "Не удалось распарсить JSON ответ от модели"
+        end
+      end
+
+      create_event payload: original_payload.merge('completion' => completion_data)
     end
 
     def cleanup_old_operations
