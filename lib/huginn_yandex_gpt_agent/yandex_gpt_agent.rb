@@ -113,6 +113,7 @@ module Agents
 
         if response && response['id']
           save_operation(response['id'], event.id)
+          log "Запрос к YandexGPT: #{response.inspect}"
         else
           error "Не удалось получить operation ID от YandexGPT"
         end
@@ -221,10 +222,6 @@ module Agents
       memory['pending_operations'].delete_if do |_, data|
         Time.parse(data['created_at']) < 1.day.ago
       end
-    end
-
-    def log_request(response)
-      log "Запрос к YandexGPT: #{response.inspect}"
     end
   end
 end
