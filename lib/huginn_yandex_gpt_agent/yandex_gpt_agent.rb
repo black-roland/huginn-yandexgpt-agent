@@ -62,7 +62,7 @@ module Agents
     form_configurable :temperature, type: :number
     form_configurable :max_tokens, type: :number
     form_configurable :json_output, type: :boolean
-    form_configurable :json_schema, type: :text
+    form_configurable :json_schema, type: :text, ace: { mode: 'json' }
     form_configurable :expected_receive_period_in_days, type: :number, html_options: { min: 1 }
 
     def default_options
