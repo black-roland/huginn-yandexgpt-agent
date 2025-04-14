@@ -62,8 +62,8 @@ module Agents
     form_configurable :temperature, type: :number
     form_configurable :max_tokens, type: :number
     form_configurable :json_output, type: :boolean
-    form_configurable :json_schema, type: :text
-    form_configurable :expected_receive_period_in_days, type: :string
+    form_configurable :json_schema, type: :json
+    form_configurable :expected_receive_period_in_days, type: :number, html_options: { min: 1 }
 
     def default_options
       {
@@ -76,6 +76,7 @@ module Agents
         'temperature' => 0.1,
         'max_tokens' => 2000,
         'json_output' => 'false',
+        'json_schema' => {},
         'expected_receive_period_in_days' => '2'
       }
     end
@@ -92,14 +93,6 @@ module Agents
 
       if options['max_tokens'].present?
         errors.add(:base, "max_tokens должен быть положительным числом") unless options['max_tokens'].to_i > 0
-      end
-
-      if options['json_schema'].present?
-        begin
-          JSON.parse(options['json_schema'])
-        rescue JSON::ParserError => e
-          errors.add(:base, "json_schema должен быть валидным JSON: #{e.message}")
-        end
       end
     end
 
@@ -169,14 +162,9 @@ module Agents
         ]
       }
 
-      # Добавляем параметры для структурированного вывода
       if boolify(interpolated['json_output'])
-        if interpolated['json_schema'].present?
-          begin
-            request_body[:json_schema] = { schema: JSON.parse(interpolated['json_schema']) }
-          rescue JSON::ParserError => e
-            error "Ошибка парсинга json_schema: #{e.message}"
-          end
+        if interpolated['json_schema'].present? && interpolated['json_schema'].is_a?(Hash)
+          request_body[:json_schema] = { schema: interpolated['json_schema'] }
         else
           request_body[:json_object] = true
         end
