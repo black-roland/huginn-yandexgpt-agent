@@ -13,26 +13,22 @@ module Agents
     description <<~MD
       YandexGPT Agent предоставляет интеграцию с языковыми моделями YandexGPT через Huginn.
 
-      `folder_id`: Идентификатор каталога Yandex Cloud (обязательно)
+      ### Основные параметры
+      `folder_id`: Идентификатор каталога Yandex Cloud (обязательно)<br>
+      `api_key`: API-ключ для аутентификации (обязательно)<br>
+      `model_name`: Название модели (по умолчанию 'yandexgpt-lite')<br>
+      `model_version`: Версия модели ('latest', 'rc' или 'deprecated')<br>
 
-      `api_key`: API-ключ для аутентификации (обязательно)
+      ### Настройки генерации
+      `system_prompt`: Системный промпт (по умолчанию 'Выдели основные мысли из статьи.')<br>
+      `user_prompt`: Пользовательский промпт с поддержкой Liquid (обязательно)<br>
+      `temperature`: Креативность ответов (0-1, по умолчанию 0.1)<br>
+      `max_tokens`: Максимальное количество токенов (по умолчанию 2000)<br>
 
-      `model_name`: Название модели (по умолчанию 'yandexgpt-lite')
-
-      `model_version`: Версия модели ('latest', 'rc' или 'deprecated')
-
-      `system_prompt`: Системный промпт (по умолчанию 'Выдели основные мысли из статьи.')
-
-      `user_prompt`: Пользовательский промпт с поддержкой Liquid (обязательно)
-
-      `temperature`: Креативность ответов (0-1, по умолчанию 0.1)
-
-      `max_tokens`: Максимальное количество токенов (по умолчанию 2000)
-
-      `json_output`: Возвращать ответ в формате JSON (true/false)
-
-      `json_schema`: Схема JSON для структурированного ответа (опционально)
-
+      ### Расширенные возможности:
+      `json_output`: Возвращать ответ в формате JSON (true/false)<br>
+      `json_schema`: Схема JSON для структурированного ответа (опционально)<br>
+      `reasoning_mode`: Режим рассуждений ('disabled', 'enabled_hidden')<br>
     MD
 
     event_description <<~MD
@@ -63,6 +59,7 @@ module Agents
     form_configurable :max_tokens, type: :number
     form_configurable :json_output, type: :boolean
     form_configurable :json_schema, type: :text, ace: { mode: 'json' }
+    form_configurable :reasoning_mode, type: :array, values: ['disabled', 'enabled_hidden']
     form_configurable :expected_receive_period_in_days, type: :number, html_options: { min: 1 }
 
     def default_options
@@ -76,6 +73,7 @@ module Agents
         'temperature' => 0.1,
         'max_tokens' => 2000,
         'json_output' => 'false',
+        'reasoning_mode' => 'disabled',
         'expected_receive_period_in_days' => '2'
       }
     end
@@ -161,7 +159,10 @@ module Agents
         completionOptions: {
           stream: false,
           temperature: temperature,
-          maxTokens: max_tokens.to_s
+          maxTokens: max_tokens.to_s,
+          reasoningOptions: {
+            mode: interpolated['reasoning_mode'].upcase
+          }
         },
         messages: [
           { role: 'system', text: system_prompt },
@@ -169,7 +170,6 @@ module Agents
         ]
       }
 
-      # Добавляем параметры для структурированного вывода
       if boolify(interpolated['json_output'])
         if interpolated['json_schema'].present?
           begin
@@ -246,6 +246,11 @@ module Agents
         },
         'model_version' => gpt_response['modelVersion']
       }
+
+      # Добавляем информацию о рассуждениях, если есть
+      if usage['completionTokensDetails'] && usage['completionTokensDetails']['reasoningTokens']
+        completion_data['usage']['reasoning_tokens'] = usage['completionTokensDetails']['reasoningTokens']
+      end
 
       # Добавляем JSON ответ если он есть
       if boolify(interpolated['json_output']) && text
