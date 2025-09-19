@@ -5,3 +5,4 @@
 require 'huginn_agent'
 
 HuginnAgent.register 'huginn_yandex_gpt_agent/yandex_gpt_agent'
+HuginnAgent.register 'huginn_yandex_embedding_classifier_agent/yandex_embedding_classifier_agent'
