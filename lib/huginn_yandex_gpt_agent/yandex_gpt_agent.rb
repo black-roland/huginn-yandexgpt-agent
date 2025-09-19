@@ -55,7 +55,7 @@ module Agents
     form_configurable :model_version, type: :string
     form_configurable :system_prompt, type: :text
     form_configurable :user_prompt, type: :text
-    form_configurable :temperature, type: :number
+    form_configurable :temperature, type: :number, html_options: { min: 0, max: 2, step: 0.1 }
     form_configurable :max_tokens, type: :number
     form_configurable :json_output, type: :boolean
     form_configurable :json_schema, type: :text, ace: { mode: 'json' }
