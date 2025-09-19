@@ -188,7 +188,8 @@ module Agents
         {
           'Content-Type' => 'application/json',
           'Authorization' => "Api-Key #{interpolated['api_key']}",
-          'x-folder-id' => interpolated['folder_id']
+          'x-folder-id' => interpolated['folder_id'],
+          'x-data-logging-enabled': 'false' # Отключаем логирование запросов
         }
       )
 
