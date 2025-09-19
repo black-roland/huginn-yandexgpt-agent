@@ -11,33 +11,36 @@ module Agents
     cannot_be_scheduled!
 
     description <<~MD
-      Yandex Embedding Classifier Agent использует эмбеддинги YandexGPT для классификации текста по заданным меткам.
+      Yandex Embedding Classifier Agent использует эмбеддинги YandexGPT для классификации текста.
 
       ### Основные параметры
       `api_key`: API-ключ для Yandex Cloud API (обязательно)<br>
       `folder_id`: Идентификатор каталога Yandex Cloud (обязательно)<br>
-      `labels`: Массив меток для классификации (обязательно)<br>
+      `label_candidates`: Список меток-кандидатов, из которых будет производиться выбор (обязательно)<br>
       `text`: Текст для классификации с поддержкой Liquid (обязательно)<br>
       `min_similarity`: Минимальное значение косинусного сходства (0-1, по умолчанию 0.7)<br>
       `model_uri`: URI модели для эмбеддингов<br>
 
       ### Принцип работы
-      Агент вычисляет эмбеддинги для каждой метки и входящего текста, затем находит наиболее подходящие метки на основе косинусного сходства.
+      Агент вычисляет эмбеддинги для каждой метки-кандидата и входящего текста, затем находит наиболее подходящие метки на основе косинусного сходства.
       Метки, чье сходство превышает `min_similarity`, добавляются в выходное событие.
+
+      ### Пример использования
+      `label_candidates`: ["ai", "programming", "news", "science"]
+      Текст: "Новое исследование в области искусственного интеллекта"
+      Результат: `classification.labels` = ["ai", "science"] (если сходство > min_similarity)
     MD
 
     event_description <<~MD
-      События содержат оригинальный payload с добавленными метками:
+      События содержат оригинальный payload с добавленным объектом classification:
       ```json
       {
-        "labels": ["label1", "label2"],
-        "similarities": {
-          "label1": 0.85,
-          "label2": 0.78
-        },
-        "embedding_debug": {
-          "text_embedding_size": 256,
-          "labels_processed": 45
+        "classification": {
+          "labels": ["label1", "label2"],
+          "similarities": {
+            "label1": 0.85,
+            "label2": 0.78
+          }
         }
       }
       ```
@@ -47,7 +50,7 @@ module Agents
       {
         'api_key' => '',
         'folder_id' => '',
-        'labels' => [],
+        'label_candidates' => [],
         'text' => '{{title}} {{description}}',
         'min_similarity' => '0.7',
         'model_uri' => 'text-search-query',
@@ -58,7 +61,7 @@ module Agents
     def validate_options
       errors.add(:base, "api_key обязателен") unless options['api_key'].present?
       errors.add(:base, "folder_id обязателен") unless options['folder_id'].present?
-      errors.add(:base, "labels обязателен") unless options['labels'].present?
+      errors.add(:base, "label_candidates обязателен") unless options['label_candidates'].present?
       errors.add(:base, "text обязателен") unless options['text'].present?
 
       if options['min_similarity'].present?
@@ -101,34 +104,34 @@ module Agents
 
         selected_labels = select_labels(similarities)
 
-        embedding_data =
-
-        create_event payload: event.payload.merge('embedding' => {
-          'labels' => selected_labels.keys,
-          'similarities' => similarities,
-        })
+        create_event payload: event.payload.merge(
+          'classification' => {
+            'labels' => selected_labels.keys,
+            'similarities' => similarities
+          }
+        )
       end
     rescue => e
       error "Ошибка обработки события: #{e.message}\n#{e.backtrace.first(10).join("\n")}"
     end
 
     def get_label_embeddings
-      # Используем memory как кэш для эмбеддингов меток
+      # Используем memory как кэш для эмбеддингов меток-кандидатов
       memory['label_embeddings'] ||= {}
-      labels = interpolated['labels']
+      labels = interpolated['label_candidates']
 
-      # Вычисляем эмбеддинги для отсутствующих меток
+      # Вычисляем эмбеддинги для отсутствующих меток-кандидатов
       labels_to_process = labels.reject { |label| memory['label_embeddings'][label].present? }
 
       if labels_to_process.any?
-        log "Вычисляем эмбеддинги для #{labels_to_process.size} меток"
+        log "Вычисляем эмбеддинги для #{labels_to_process.size} меток-кандидатов"
 
         labels_to_process.each do |label|
           embedding = get_embedding(label)
           if embedding
             memory['label_embeddings'][label] = embedding
           else
-            error "Не удалось получить эмбеддинг для метки: #{label}"
+            error "Не удалось получить эмбеддинг для метки-кандидата: #{label}"
           end
         end
       end
