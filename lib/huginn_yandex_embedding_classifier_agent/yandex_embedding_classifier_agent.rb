@@ -153,8 +153,8 @@ module Agents
 
       response_data = JSON.parse(response.body)
 
-      if response_data['embeddings'] && response_data['embeddings'][0]
-        response_data['embeddings'][0]['embedding']
+      if response_data['embedding']
+        response_data['embedding']
       else
         error "Неверный формат ответа от API: #{response_data.inspect}"
         nil
@@ -235,15 +235,6 @@ module Agents
       log "Выбрано #{selected.size} метк(и/а) из #{similarities.size} с сходством >= #{min_similarity}"
 
       selected.to_h
-    end
-
-    def faraday
-      @faraday ||= Faraday.new do |builder|
-        builder.request :json
-        builder.response :json, content_type: /\bjson$/
-        builder.response :raise_error
-        builder.adapter Faraday.default_adapter
-      end
     end
   end
 end
