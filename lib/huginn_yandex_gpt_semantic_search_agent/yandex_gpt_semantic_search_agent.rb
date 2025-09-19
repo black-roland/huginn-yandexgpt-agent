@@ -28,11 +28,15 @@ module Agents
       Для каждого найденного документа применяется шаблон `result_extraction_pattern` для извлечения конечного результата.
 
       ### Пример использования для классификации
-      `candidate_documents`: ["ai artificial intelligence", "radio wireless communication", "iot internet of things and connected devices"]
-      `query_text`: "{{ title }} {{ description }}"
-      `result_extraction_pattern`: "{{ document | split: ' ' | first }}"
-      Запрос: "Новое исследование в области искусственного интеллекта"
+      `candidate_documents`: `["ai artificial intelligence", "radio wireless communication", "iot internet of things and connected devices"]`<br>
+      `query_text`: `"{{ title }} {{ description }}"`<br>
+      `result_extraction_pattern`: `"{{ document | split: ' ' | first }}"`<br>
+      <br>
+      Запрос: "Новое исследование в области искусственного интеллекта"<br>
       Результат: `semantic_search.results` = ["ai"] (если сходство > min_similarity)
+
+      ### Важно
+      В dry run отсутствует кэширование, поэтому для всех документов эмбеддинги вычисляются каждый раз.
     MD
 
     event_description <<~MD
@@ -146,12 +150,18 @@ module Agents
       if documents_to_process.any?
         log "Вычисляем эмбеддинги для #{documents_to_process.size} документов-кандидатов"
 
-        documents_to_process.each do |document|
-          embedding = get_embedding(document)
-          if embedding
-            memory['document_embeddings'][document] = embedding
-          else
-            error "Не удалось получить эмбеддинг для документа: #{document}"
+        # Обрабатываем документы группами с задержкой
+        documents_to_process.each_slice(10).with_index do |batch, batch_index|
+          # Добавляем задержку между группами запросов (1 секунда)
+          sleep(1) if batch_index > 0
+
+          batch.each do |document|
+            embedding = get_embedding(document)
+            if embedding
+              memory['document_embeddings'][document] = embedding
+            else
+              error "Не удалось получить эмбеддинг для документа: #{document}"
+            end
           end
         end
       end
