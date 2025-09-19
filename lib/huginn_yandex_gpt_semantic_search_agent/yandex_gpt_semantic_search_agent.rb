@@ -18,19 +18,19 @@ module Agents
       `folder_id`: Идентификатор каталога Yandex Cloud (обязательно)<br>
       `candidate_documents`: Массив документов-кандидатов для поиска (обязательно)<br>
       `query_text`: Текст запроса для поиска с поддержкой Liquid (обязательно)<br>
-      `result_extraction_pattern`: Liquid шаблон для извлечения результата из найденного документа<br>
+      `result_extraction_template`: Liquid шаблон для извлечения результата из найденного документа<br>
       `min_similarity`: Минимальное значение косинусного сходства (0-1, по умолчанию 0.7)<br>
       `max_results`: Максимальное количество возвращаемых результатов (по умолчанию 5)<br>
       `model_uri`: URI модели для эмбеддингов<br>
 
       ### Принцип работы
       Агент вычисляет эмбеддинги для каждого документа-кандидата и текста запроса, затем находит наиболее подходящие документы на основе косинусного сходства.
-      Для каждого найденного документа применяется шаблон `result_extraction_pattern` для извлечения конечного результата.
+      Для каждого найденного документа применяется шаблон `result_extraction_template` для извлечения конечного результата.
 
       ### Пример использования для классификации
       `candidate_documents`: `["ai artificial intelligence", "radio wireless communication", "iot internet of things and connected devices"]`<br>
       `query_text`: `"{{ title }} {{ description }}"`<br>
-      `result_extraction_pattern`: `"{{ document | split: ' ' | first }}"`<br>
+      `result_extraction_template`: `"{{ document | split: ' ' | first }}"`<br>
       <br>
       Запрос: "Новое исследование в области искусственного интеллекта"<br>
       Результат: `semantic_search.results` = ["ai"] (если сходство > min_similarity)
@@ -67,7 +67,7 @@ module Agents
           "iot internet of things and connected devices"
         ],
         'query_text' => '{{ title }} {{ description }}',
-        'result_extraction_pattern' => '{{ document | split: " " | first }}',
+        'result_extraction_template' => '{{ document | split: " " | first }}',
         'min_similarity' => '0.7',
         'max_results' => '5',
         'model_uri' => 'text-search-doc',
@@ -130,7 +130,7 @@ module Agents
 
         create_event payload: event.payload.merge(
           'semantic_search' => {
-            'results' => results.map { |r| r[:result] }.uniq,
+            'results' => results.map { |r| r['result'] }.uniq,
             'matches' => results
           }
         )
@@ -266,7 +266,6 @@ module Agents
     end
 
     def extract_results(selected_documents, event)
-      pattern = interpolated['result_extraction_pattern']
       results = []
 
       selected_documents.each do |document, similarity|
@@ -275,7 +274,7 @@ module Agents
           'similarity' => similarity
         )
 
-        result = interpolate_string(pattern, interpolation_payload)
+        result = interpolate_string(options['result_extraction_template'], interpolation_payload)
 
         results << {
           'document' => document,
