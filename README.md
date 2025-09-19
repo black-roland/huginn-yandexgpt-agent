@@ -1,6 +1,6 @@
-# Huginn YandexGPT Agents
+# Huginn Yandex Foundation Models Agents
 
-Набор агентов для интеграции сервисов искусственного интеллекта Yandex Cloud с Huginn.
+Набор агентов для интеграции сервисов искусственного интеллекта Yandex Cloud Foundation Models с Huginn.
 
 ## Агенты
 
@@ -17,15 +17,16 @@
 - Поддержка JSON вывода (структурированные данные)
 - Автоматическая проверка статуса операций
 
-### Yandex Embedding Classifier Agent
+### YandexGPT Semantic Search Agent
 
-Агент для семантической классификации текста с использованием эмбеддингов YandexGPT. Идеален для автотеггинга и категоризации контента.
+Универсальный агент для семантического поиска и классификации с использованием эмбеддингов Yandex Foundation Models. Поддерживает различные сценарии: от автотеггинга до семантического поиска по базе знаний.
 
 **Ключевые возможности:**
-- Семантическая классификация на основе векторных представлений
+- Семантический поиск по произвольным документам-кандидатам
+- Гибкое извлечение результатов через Liquid-шаблоны
 - Поддержка моделей эмбеддингов (`text-search-doc`, `text-search-query`)
-- Кэширование эмбеддингов для меток-кандидатов
-- Настраиваемый порог сходства (0-1)
+- Кэширование эмбеддингов для документов-кандидатов
+- Настраиваемый порог сходства (0-1) и лимит результатов
 
 ## Установка
 
@@ -61,16 +62,18 @@ bundle
 - `json_output` - Включить вывод в формате JSON
 - `json_schema` - Схема для структурированного ответа (опционально)
 
-### Yandex Embedding Classifier Agent
+### YandexGPT Semantic Search Agent
 
 **Обязательные параметры:**
 - `folder_id` - ID каталога Yandex Cloud
 - `api_key` - API-ключ для аутентификации
-- `label_candidates` - Массив меток-кандидатов для классификации
-- `text` - Текст для классификации (поддерживает Liquid-шаблоны)
+- `candidate_documents` - Массив документов-кандидатов для поиска
+- `query_text` - Текст запроса (поддерживает Liquid-шаблоны)
 
 **Основные настройки:**
+- `result_extraction_pattern` - Liquid шаблон для извлечения результатов
 - `min_similarity` (0-1) - Минимальное значение косинусного сходства
+- `max_results` - Максимальное количество возвращаемых результатов
 - `model_uri` - URI модели эмбеддингов (`text-search-doc`, `text-search-query`)
 
 ## Примеры использования
@@ -83,17 +86,40 @@ temperature: 0.3
 max_tokens: 500
 ```
 
-### Yandex Embedding Classifier Agent - автотеггинг:
+### Yandex Foundation Semantic Search Agent - автотеггинг:
+
 ```yaml
-label_candidates: ["ai", "programming", "news", "science", "technology", "business"]
-text: "{{title}} {{description}}"
-min_similarity: 0.7
-model_uri: "text-search-doc"
+candidate_documents: [
+  "ai artificial intelligence and machine learning",
+  "radio ham radio and wireless technologies",
+  "iot internet of things, connected devices and home automation",
+  "comms communication systems, telephony, APRS, Meshtastic"
+]
+query_text: "{{ title }} {{ description }}"
+result_extraction_pattern: "{{ document | split: ' ' | first }}"
+min_similarity: 0.5
+max_results: 3
+model_uri: "text-search-query"
+```
+
+### Yandex Foundation Semantic Search Agent - семантический поиск:
+
+```yaml
+candidate_documents: [
+  "Александр Сергеевич Пушкин (26 мая [6 июня] 1799, Москва — 29 января [10 февраля] 1837, Санкт-Петербург) — русский поэт, драматург и прозаик, заложивший основы русского реалистического направления, литературный критик и теоретик литературы, историк, публицист, журналист.",
+  "Ромашка — род однолетних цветковых растений семейства астровые, или сложноцветные, по современной классификации объединяет около 70 видов невысоких пахучих трав, цветущих с первого года жизни."
+]
+query_text: "когда день рождения Пушкина?"
+result_extraction_pattern: "{{ document | split: ',' | first }}"
+min_similarity: 0.6
+max_results: 1
+model_uri: "text-search-query"
 ```
 
 ## Формат выходных данных
 
 ### YandexGPT Agent:
+
 ```json
 {
   "completion": {
@@ -112,36 +138,48 @@ model_uri: "text-search-doc"
 }
 ```
 
-### Yandex Embedding Classifier Agent:
+### Yandex Foundation Semantic Search Agent:
+
 ```json
 {
-  "classification": {
-    "labels": ["ai", "science"],
-    "similarities": {
-      "ai": 0.85,
-      "science": 0.78,
-      "programming": 0.45,
-      "news": 0.32
-    },
-    "debug": {
-      "text_embedding_size": 256,
-      "labels_processed": 6,
-      "min_similarity": 0.7
-    }
+  "semantic_search": {
+    "results": ["ai", "science"],
+    "matches": [
+      {
+        "document": "ai artificial intelligence and machine learning",
+        "similarity": 0.85,
+        "result": "ai"
+      },
+      {
+        "document": "science scientific research and discoveries",
+        "similarity": 0.78,
+        "result": "science"
+      }
+    ]
   }
 }
 ```
 
 ## Преимущества использования
 
-1. **Экономичность**: Эмбеддинги значительно дешевле полных LLM-запросов
-2. **Скорость**: Быстрая семантическая классификация без генерации текста
-3. **Стабильность**: Детерминированные результаты на основе векторной математики
-4. **Гибкость**: Легкая настройка меток-кандидатов и порогов сходства
+1. **Универсальность**: Один агент для множества задач семантического поиска
+2. **Экономичность**: Эмбеддинги значительно дешевле полных LLM-запросов
+3. **Гибкость**: Произвольные документы-кандидаты и шаблоны извлечения
+4. **Стабильность**: Детерминированные результаты на основе векторной математики
+5. **Прозрачность**: Подробная информация о сходстве и совпадениях
 
 ## Типичные сценарии использования
 
 - **Автотеггинг закладок и контента**
 - **Семантическая категоризация новостей**
-- **Поиск дубликатов и похожего контента**
-- **Интеллектуальная маршрутизация событий**
+- **Поиск похожего контента и дубликатов**
+- **Извлечение структурированной информации из текста**
+
+## Уведомление
+
+Данный агент является неофициальным и не связан с Yandex Cloud. Yandex Foundation Models — это сервис, предоставляемый Yandex Cloud.
+
+Данный агент не является официальным продуктом Яндекса и не поддерживается Яндексом. Разработчик агента не несёт ответственности за:
+- Изменения в API Yandex Cloud;
+- Прекращение работы сервиса Yandex Foundation Models;
+- Любые возможные неполадки или убытки, вызванные использованием данного агента.
