@@ -81,7 +81,7 @@ bundle
 ### YandexGPT Agent - базовый сценарий:
 ```yaml
 system_prompt: "Ты - помощник, который анализирует тексты"
-user_prompt: "Выдели ключевые темы из текста: {{text}}"
+user_prompt: "Выдели ключевые темы из текста: {{ text }}"
 temperature: 0.3
 max_tokens: 500
 ```
@@ -90,14 +90,12 @@ max_tokens: 500
 
 ```yaml
 candidate_documents: [
-  "ai artificial intelligence and machine learning",
-  "radio ham radio and wireless technologies",
-  "iot internet of things, connected devices and home automation",
-  "comms communication systems, telephony, APRS, Meshtastic"
+  "ai: Artificial Intelligence, Machine Learning, Deep Learning, Neural Networks, NLP, Computer Vision, ChatGPT, OpenAI, GPT, LLM, Generative AI, AI assistants, robotics, automation, искусственный интеллект, ИИ, машинное обучение, нейросети, компьютерное зрение, генеративный ИИ",
+  "radio: Ham radio, amateur radio, wireless communication, RF, antennas, shortwave, VHF, UHF, broadcasting, transceivers, радиосвязь, радиолюбительство, антенны, беспроводная связь"
 ]
 query_text: "{{ title }} {{ description }}"
-result_extraction_pattern: "{{ document | split: ' ' | first }}"
-min_similarity: 0.5
+result_extraction_pattern: "{{ document | split: ': ' | first }}"
+min_similarity: 0.45
 max_results: 3
 model_uri: "text-search-query"
 ```
@@ -110,7 +108,7 @@ candidate_documents: [
   "Ромашка — род однолетних цветковых растений семейства астровые, или сложноцветные, по современной классификации объединяет около 70 видов невысоких пахучих трав, цветущих с первого года жизни."
 ]
 query_text: "когда день рождения Пушкина?"
-result_extraction_pattern: "{{ document | split: ',' | first }}"
+result_extraction_pattern: "{{ document }}"
 min_similarity: 0.6
 max_results: 1
 model_uri: "text-search-query"
