@@ -33,7 +33,7 @@ module Agents
       `result_extraction_template`: `"{{ document | split: ' ' | first }}"`<br>
       <br>
       Запрос: "Новое исследование в области искусственного интеллекта"<br>
-      Результат: `semantic_search.results` = ["ai"] (если сходство > min_similarity)
+      Результат: `semantic_search.results` = `["ai"]` (если сходство > `min_similarity`)
 
       ### Важно
       В dry run отсутствует кэширование, поэтому для всех документов эмбеддинги вычисляются каждый раз.
@@ -121,8 +121,6 @@ module Agents
         end
 
         similarities = calculate_similarities(query_embedding, document_embeddings)
-
-        log "Вычисленные similarities: #{similarities.inspect}"
 
         selected_documents = select_documents(similarities)
 
@@ -255,12 +253,12 @@ module Agents
       min_similarity = interpolated['min_similarity'].to_f
       max_results = interpolated['max_results'].to_i
 
-      # Сортируем по убыванию сходства, выбираем превосходящие порог и ограничиваем количество
       sorted_similarities = similarities.sort_by { |_, similarity| -similarity }
-      selected = sorted_similarities.select { |_, similarity| similarity >= min_similarity }
-      limited = selected.first(max_results)
+      top_similarities = sorted_similarities.first(max_results)
+      log "Наиболее похожие документы: #{top_similarities.map { |doc, sim| "\"#{doc.truncate(50)}\" (#{sim.round(4)})" }.join(', ')}"
 
-      log "Выбрано #{limited.size} документ(ов) из #{similarities.size} с сходством >= #{min_similarity}"
+      selected = top_similarities.select { |_, similarity| similarity >= min_similarity }
+      limited = selected.first(max_results)
 
       limited.to_h
     end
