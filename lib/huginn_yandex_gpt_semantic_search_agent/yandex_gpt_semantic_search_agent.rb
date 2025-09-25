@@ -21,10 +21,11 @@ module Agents
       `result_extraction_template`: Liquid шаблон для извлечения результата из найденного документа<br>
       `min_similarity`: Минимальное значение косинусного сходства (0-1, по умолчанию 0.7)<br>
       `max_results`: Максимальное количество возвращаемых результатов (по умолчанию 5)<br>
-      `model_uri`: URI модели для эмбеддингов<br>
+      `query_model_uri`: URI модели для эмбеддинга запроса (например, `text-search-query`)<br>
+      `document_model_uri`: URI модели для эмбеддинга документов-кандидатов (например, `text-search-document`)<br>
 
       ### Принцип работы
-      Агент вычисляет эмбеддинги для каждого документа-кандидата и текста запроса, затем находит наиболее подходящие документы на основе косинусного сходства.
+      Агент вычисляет эмбеддинги для каждого документа-кандидата (с использованием `document_model_uri`) и текста запроса (с использованием `query_model_uri`), затем находит наиболее подходящие документы на основе косинусного сходства.
       Для каждого найденного документа применяется шаблон `result_extraction_template` для извлечения конечного результата.
 
       ### Пример использования для классификации
@@ -70,7 +71,8 @@ module Agents
         'result_extraction_template' => '{{ document | split: " " | first }}',
         'min_similarity' => '0.7',
         'max_results' => '5',
-        'model_uri' => 'text-search-doc',
+        'query_model_uri' => 'text-search-query',
+        'document_model_uri' => 'text-search-document',
         'expected_receive_period_in_days' => '2'
       }
     end
@@ -80,6 +82,8 @@ module Agents
       errors.add(:base, "folder_id обязателен") unless options['folder_id'].present?
       errors.add(:base, "candidate_documents обязателен") unless options['candidate_documents'].present?
       errors.add(:base, "query_text обязателен") unless options['query_text'].present?
+      errors.add(:base, "query_model_uri обязателен") unless options['query_model_uri'].present?
+      errors.add(:base, "document_model_uri обязателен") unless options['document_model_uri'].present?
 
       if options['min_similarity'].present?
         min_sim = options['min_similarity'].to_f
@@ -114,7 +118,7 @@ module Agents
           return
         end
 
-        query_embedding = get_embedding(query_text)
+        query_embedding = get_embedding_for_query(query_text)
         unless query_embedding
           error "Не удалось получить эмбеддинг для запроса"
           return
@@ -154,7 +158,7 @@ module Agents
           sleep(1) if batch_index > 0
 
           batch.each do |document|
-            embedding = get_embedding(document)
+            embedding = get_embedding_for_document(document)
             if embedding
               memory['document_embeddings'][document] = embedding
             else
@@ -167,8 +171,40 @@ module Agents
       memory['document_embeddings']
     end
 
-    def get_embedding(text)
-      response = send_embedding_request(text)
+    def get_embedding_for_query(text)
+      model_uri = get_model_uri(interpolated['query_model_uri'])
+      send_embedding_request(text, model_uri)
+    end
+
+    def get_embedding_for_document(text)
+      model_uri = get_model_uri(interpolated['document_model_uri'])
+      send_embedding_request(text, model_uri)
+    end
+
+    def get_model_uri(uri)
+      if uri.include?('://')
+        uri
+      else
+        "emb://#{interpolated['folder_id']}/#{uri}/latest"
+      end
+    end
+
+    def send_embedding_request(text, model_uri)
+      request_body = {
+        modelUri: model_uri,
+        text: text
+      }
+
+      response = faraday.post(
+        "https://llm.api.cloud.yandex.net/foundationModels/v1/textEmbedding",
+        request_body.to_json,
+        {
+          'Content-Type' => 'application/json',
+          'Authorization' => "Api-Key #{interpolated['api_key']}",
+          'x-folder-id' => interpolated['folder_id'],
+          'x-data-logging-enabled': 'false'
+        }
+      )
 
       unless response&.success?
         error "Ошибка API: #{response&.body || 'Нет ответа'}"
@@ -186,30 +222,6 @@ module Agents
     rescue JSON::ParserError => e
       error "Ошибка парсинга JSON: #{e.message}\nResponse body: #{response&.body}"
       nil
-    end
-
-    def send_embedding_request(text)
-      model_uri = if interpolated['model_uri'].include?('://')
-        interpolated['model_uri']
-      else
-        "emb://#{interpolated['folder_id']}/#{interpolated['model_uri']}/latest"
-      end
-
-      request_body = {
-        modelUri: model_uri,
-        text: text
-      }
-
-      faraday.post(
-        "https://llm.api.cloud.yandex.net/foundationModels/v1/textEmbedding",
-        request_body.to_json,
-        {
-          'Content-Type' => 'application/json',
-          'Authorization' => "Api-Key #{interpolated['api_key']}",
-          'x-folder-id' => interpolated['folder_id'],
-          'x-data-logging-enabled': 'false'
-        }
-      )
     end
 
     def calculate_similarities(query_embedding, document_embeddings)
