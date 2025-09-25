@@ -79,6 +79,7 @@ bundle
 ## Примеры использования
 
 ### YandexGPT Agent - базовый сценарий:
+
 ```yaml
 system_prompt: "Ты - помощник, который анализирует тексты"
 user_prompt: "Выдели ключевые темы из текста: {{ text }}"
@@ -97,7 +98,8 @@ query_text: "{{ title }} {{ description }}"
 result_extraction_pattern: "{{ document | split: ': ' | first }}"
 min_similarity: 0.45
 max_results: 3
-model_uri: "text-search-query"
+query_model_uri: "text-search-doc"
+document_model_uri: "text-search-doc"
 ```
 
 ### Yandex Foundation Semantic Search Agent - семантический поиск:
@@ -111,7 +113,8 @@ query_text: "когда день рождения Пушкина?"
 result_extraction_pattern: "{{ document }}"
 min_similarity: 0.6
 max_results: 1
-model_uri: "text-search-query"
+query_model_uri: "text-search-query"
+document_model_uri: "text-search-doc"
 ```
 
 ## Формат выходных данных
