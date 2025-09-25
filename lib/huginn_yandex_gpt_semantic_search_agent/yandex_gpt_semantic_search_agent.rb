@@ -22,7 +22,7 @@ module Agents
       `min_similarity`: Минимальное значение косинусного сходства (0-1, по умолчанию 0.7)<br>
       `max_results`: Максимальное количество возвращаемых результатов (по умолчанию 5)<br>
       `query_model_uri`: URI модели для эмбеддинга запроса (например, `text-search-query`)<br>
-      `document_model_uri`: URI модели для эмбеддинга документов-кандидатов (например, `text-search-document`)<br>
+      `document_model_uri`: URI модели для эмбеддинга документов-кандидатов (например, `text-search-doc`)<br>
 
       ### Принцип работы
       Агент вычисляет эмбеддинги для каждого документа-кандидата (с использованием `document_model_uri`) и текста запроса (с использованием `query_model_uri`), затем находит наиболее подходящие документы на основе косинусного сходства.
@@ -72,7 +72,7 @@ module Agents
         'min_similarity' => '0.7',
         'max_results' => '5',
         'query_model_uri' => 'text-search-query',
-        'document_model_uri' => 'text-search-document',
+        'document_model_uri' => 'text-search-doc',
         'expected_receive_period_in_days' => '2'
       }
     end
